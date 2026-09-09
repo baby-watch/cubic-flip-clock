@@ -6,7 +6,7 @@ from fontTools.varLib.instancer import instantiateVariableFont
 from fontTools import subset
 
 root=Path(__file__).resolve().parents[1]
-symbols='北京时间等待系统校时年月日星期一二三四五六七八九十农历闰正冬腊初廿三超出范围0123456789 /-'
+symbols='黑白纯琥珀冰蓝紫晶奶油血红原版翻页余辉机械回弹北京时间等待系统校时年月日星期一二三四五六七八九十农历闰正冬腊初廿三超出范围0123456789 /-'
 parser=argparse.ArgumentParser()
 parser.add_argument('--source',type=Path)
 args=parser.parse_args()

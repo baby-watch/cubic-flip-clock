@@ -6,11 +6,11 @@ local A = {running=true, light=false, seconds=true, cards={}, timers={}, fonts={
 local diagnostics=file.exists(DIR.."diagnostics.flag")
 _G[NAME] = A
 local S = LV_PART_MAIN | LV_STATE_DEFAULT
-local status = {version="1.0.0", state="starting", cleanup_errors={}, started=tmr.now()}
+local status = {version="1.1.0", state="starting", cleanup_errors={}, started=tmr.now()}
 local function nowms() return tmr.now()/1000 end
 local function report()
   if not diagnostics then return end
-  status.light=A.light; status.seconds=A.seconds; status.flips=A.flips; status.ticks=A.tick
+  status.theme=A.theme;status.motion=A.motion;status.light=A.light; status.seconds=A.seconds; status.flips=A.flips; status.ticks=A.tick
   status.usage=sys.usage()
   file.putcontents(DIR.."status.json",sjson.encode(status))
 end
@@ -58,20 +58,22 @@ local function timeparts()
   if type(t)~="table" or not t.year or t.year<2024 then return nil end
   return t
 end
-local calendar,lunarData,preferences
+local calendar,lunarData,preferences,skins,motion
+local function skin() return skins[A.skinIndex] end
 local function weekday(y,m,d)
   local offsets={0,3,2,5,0,3,5,1,4,6,2,4}
   if m<3 then y=y-1 end
   return (y+math.floor(y/4)-math.floor(y/100)+math.floor(y/400)+offsets[m]+d)%7+1
 end
-local function readcard(n,w,h)
-  local filename=(A.seconds and "small" or "large").."-"..(A.light and "light" or "dark")..".rgb"
-  local f=assert(file.open(DIR..filename,"r"),"Cannot open "..filename)
-  local ok,data=pcall(function() f:seek("set",n*w*h*2); return f:read(w*h*2) end)
-  f:close()
-  if not ok then error(data) end
-  assert(type(data)=="string" and #data==w*h*2,"Incomplete digit asset")
-  return data
+local function readcard(n,w,h,glow)
+  local slot=n*16+(glow and 8 or 0)+1
+  local offset,length=string.unpack("<I4I4",A.assetIndex,slot)
+  local f=assert(file.open(DIR..A.assetStem..".dat","r"),"Cannot open digit asset")
+  local ok,data=pcall(function() f:seek("set",offset);return f:read(length) end)
+  f:close();if not ok then error(data) end
+  local decoded,err=zlib.inflate(data)
+  assert(type(decoded)=="string" and #decoded==w*h*2,err or "Incomplete digit asset")
+  return decoded
 end
 local function blit(c,pixels,x,y,w,h)
   lv_canvas_blit_rgb565(c.canvas,x or 0,y or 0,w or c.w,h or c.h,pixels)
@@ -88,22 +90,40 @@ end
 local function frame(c,stamp)
   if not c.started then return end
   local elapsed=(stamp-c.started)%4294967.296
+  local duration=A.motion=="rebound" and 620 or 320
   local p=math.min(1,elapsed/320)
   local half=c.h/2; local split=c.w*half*2
-  if p>=1 then blit(c,c.pixels); c.old=nil; c.started=nil; return end
+  if elapsed>=duration then
+    if not c.landed then
+      blit(c,c.pixels);c.old=nil;c.landed=true
+      if A.motion=="afterglow" and c.glowPixels then
+        lv_canvas_blit_rgb565(c.glowCanvas,0,0,c.w,c.h,c.glowPixels);c.glowPixels=nil
+      end
+    end
+    if A.motion=="afterglow" then
+      local opacity=motion.glow(elapsed-duration)
+      -- 只改变图像本身的透明度，避免整个对象额外生成透明合成层。
+      if c.glowOpa~=opacity then lv_obj_set_style_img_opa(c.glowCanvas,opacity,S);c.glowOpa=opacity end
+      if opacity>0 then return end
+    end
+    c.started=nil;return
+  end
   lv_canvas_frame_begin(c.canvas)
-  blit(c,c.pixels:sub(1,split)..c.old:sub(split+1))
+  blit(c,elapsed>=320 and c.pixels or (c.pixels:sub(1,split)..c.old:sub(split+1)))
   if p<0.5 then
     local h=math.max(1,math.floor(half*math.cos(p*math.pi)))
     blit(c,squeeze(c.old,c.w,0,half,h),0,half-h,c.w,h)
   else
-    local h=math.max(1,math.floor(half*math.sin((p-0.5)*math.pi)))
+    local ratio=A.motion=="rebound" and motion.rebound(elapsed-160) or math.sin((p-0.5)*math.pi)
+    local h=math.max(1,math.floor(half*ratio))
     blit(c,squeeze(c.pixels,c.w,half,half,h),0,half,c.w,h)
   end
   lv_canvas_frame_end(c.canvas)
 end
 local function rebuild()
   A.cards={}
+  A.assetStem="skins/"..(A.seconds and "small" or "large").."-"..A.theme
+  A.assetIndex=assert(file.getcontents(DIR..A.assetStem..".idx"))
   if A.cardRoot then lv_obj_del(A.cardRoot) end
   A.cardRoot=lv_obj_create(A.panel); reset(A.cardRoot)
   lv_obj_set_size(A.cardRoot,320,130); lv_obj_set_pos(A.cardRoot,0,58)
@@ -112,15 +132,19 @@ local function rebuild()
   local w,h,gap=A.seconds and 94 or 140,A.seconds and 100 or 116,A.seconds and 6 or 10
   local x=math.floor((320-count*w-(count-1)*gap)/2)
   for i=1,count do
-    local panel=box(A.cardRoot,x+(i-1)*(w+gap),0,w,h,A.light and 0xffffff or 0x111111,7)
+    local panel=box(A.cardRoot,x+(i-1)*(w+gap),0,w,h,skin().top,7)
     lv_obj_set_style_clip_corner(panel,true,S)
     local canvas=lv_canvas_create(panel,w,h)
     lv_obj_set_pos(canvas,0,0)
     local c={canvas=canvas,w=w,h=h,value=-1}
+    if A.motion=="afterglow" then
+      c.glowCanvas=lv_canvas_create(panel,w,h)
+      lv_obj_set_pos(c.glowCanvas,0,0);lv_obj_set_style_img_opa(c.glowCanvas,0,S);c.glowOpa=0
+    end
     A.cards[i]=c
-    box(panel,0,h/2,w,1,A.light and 0xc6c6c6 or 0,0)
-    box(panel,0,h/2-3,3,6,A.light and 0xb0b0b0 or 0x606060,1)
-    box(panel,w-3,h/2-3,3,6,A.light and 0xb0b0b0 or 0x606060,1)
+    box(panel,0,h/2,w,1,skin().seam,0)
+    box(panel,0,h/2-3,3,6,skin().hinge,1)
+    box(panel,w-3,h/2-3,3,6,skin().hinge,1)
   end
   if A.seconds then lv_obj_clear_flag(A.iconSecond,LV_OBJ_FLAG_HIDDEN)
   else lv_obj_add_flag(A.iconSecond,LV_OBJ_FLAG_HIDDEN) end
@@ -133,11 +157,15 @@ local function update(animate)
   local stamp=nowms()
   for i,c in ipairs(A.cards) do
     if c.value~=values[i] then
-      local data
-      if c.nextValue==values[i] then data=c.nextPixels;c.nextPixels=nil;c.nextValue=nil
-      else data=readcard(values[i],c.w,c.h) end
+      local data,glow
+      if c.nextValue==values[i] then data=c.nextPixels;glow=c.nextGlow;c.nextPixels=nil;c.nextGlow=nil;c.nextValue=nil
+      else
+        data=readcard(values[i],c.w,c.h)
+        if animate and A.motion=="afterglow" then glow=readcard(values[i],c.w,c.h,true) end
+      end
       local old=c.pixels
-      c.pixels=data; c.value=values[i]
+      c.pixels=data;c.glowPixels=glow;c.value=values[i];c.landed=false
+      if c.glowCanvas then lv_obj_set_style_img_opa(c.glowCanvas,0,S);c.glowOpa=0 end
       if animate and old then c.old=old;c.started=stamp;A.flips=A.flips+1
       else c.old=nil;c.started=nil;blit(c,data) end
     end
@@ -160,7 +188,9 @@ local function prefetch()
   for i,c in ipairs(A.cards) do
     local nextValue=(c.value+1)%(i==1 and 24 or 60)
     if c.value>=0 and c.nextValue~=nextValue then
-      c.nextPixels=readcard(nextValue,c.w,c.h);c.nextValue=nextValue
+      c.nextPixels=readcard(nextValue,c.w,c.h)
+      if A.motion=="afterglow" then c.nextGlow=readcard(nextValue,c.w,c.h,true) end
+      c.nextValue=nextValue
       return
     end
   end
@@ -182,8 +212,11 @@ local function start()
   calendar=assert(load(assert(file.getcontents(DIR.."calendar.lua")),"@calendar.lua"))()
   lunarData=assert(load(assert(file.getcontents(DIR.."lunar_data.lua")),"@lunar_data.lua"))()
   preferences=assert(load(assert(file.getcontents(DIR.."preferences.lua")),"@preferences.lua"))()
+  skins=assert(load(assert(file.getcontents(DIR.."skins.lua"))))()
+  motion=assert(load(assert(file.getcontents(DIR.."motion.lua"))))()
   local saved=preferences.load(file,sjson,DIR.."settings.json")
-  A.light=saved.light;A.seconds=saved.seconds
+  A.light=saved.light;A.seconds=saved.seconds;A.theme=saved.theme;A.motion=saved.motion
+  A.skinIndex=1;for i,v in ipairs(skins) do if v.id==A.theme then A.skinIndex=i end end
   local root=lv_scr_act()
   -- 应用面板仍然透明；底层帧缓冲以黑色清屏，避免透明根节点留下旧像素。
   lv_obj_set_style_bg_color(root,0x000000,S)
@@ -196,7 +229,7 @@ local function start()
   end
   local font,datefont,lunarfont=loadfont(12),loadfont(16),loadfont(13)
   box(A.panel,14,26,4,4,0xffffff,2)
-  label("北京时间",23,21,100,font)
+  A.title=label("北京时间",23,21,190,font)
   -- 图标用几何图形绘制，不依赖字体是否包含时钟符号。
   A.icon=box(A.panel,287,21,16,16,0,8)
   lv_obj_set_style_bg_opa(A.icon,0,S)
@@ -210,12 +243,20 @@ local function start()
   rebuild();update(false)
   local function bind(code,left)
     key.on(code,function(event)
-      if not A.running or event~=key.LONG_START then return end
+      if not A.running or (event~=key.LONG_START and (left or event~=key.SHORT)) then return end
       local ok,e=pcall(function()
-        if left then A.light=not A.light else A.seconds=not A.seconds end
-        local saved,saveError=preferences.save(file,sjson,DIR.."settings.json",A.light,A.seconds)
+        local text
+        if left then
+          A.skinIndex=A.skinIndex%#skins+1;A.theme=skin().id;A.light=A.theme=="light";text=skin().name
+        elseif event==key.SHORT then
+          local nextMotion={original="afterglow",afterglow="rebound",rebound="original"}
+          local names={original="原版翻页",afterglow="余辉",rebound="机械回弹"}
+          A.motion=nextMotion[A.motion];text=names[A.motion]
+        else A.seconds=not A.seconds end
+        if text then lv_label_set_text(A.title,text);A.titleUntil=nowms() end
+        local saved,saveError=preferences.save(file,sjson,DIR.."settings.json",A.light,A.seconds,A.theme,A.motion)
         status.settings_saved=saved;status.settings_error=saveError
-        rebuild();update(false);status.last_action=left and "theme" or "seconds";report()
+        rebuild();update(false);status.last_action=left and "theme" or (event==key.SHORT and "motion" or "seconds");report()
       end)
       if not ok then status.error=tostring(e);A.stop("input-error") end
     end)
@@ -230,12 +271,15 @@ local function start()
       if app.exiting() then A.stop("app.exiting");return end
       local began=nowms()
       A.tick=A.tick+1;update(true)
+      if A.titleUntil and (nowms()-A.titleUntil)%4294967.296>1400 then
+        lv_label_set_text(A.title,"北京时间");A.titleUntil=nil
+      end
       local cost=(nowms()-began)%4294967.296
       status.max_update_ms=math.max(status.max_update_ms or 0,cost)
       status.total_update_ms=(status.total_update_ms or 0)+cost
       status.average_update_ms=status.total_update_ms/A.tick
       prefetch()
-      if diagnostics and A.tick==30 then capture();report() end
+      if diagnostics and A.tick==30 then report() end
       if A.tick%250==0 then report() end
     end)
     if not ok then status.error=tostring(e);A.stop("timer-error") end

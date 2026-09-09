@@ -16,7 +16,7 @@ package/lunar_data.lua 由 lunar-javascript 1.7.7 生成，作者 6tail，Copyri
 
 ## 数字图片
 
-package/*.rgb 是本项目使用 Windows 本机 Arial Bold 绘制的栅格图片，不包含或分发 Arial TTF/OTF 文件。数字图片保留已验收外观；重新构建需要合法可用的本机字体。Arial 字体本身不适用本项目 MIT 许可。
+package/*.rgb 以及 package/skins/ 下的压缩数字图片由本项目使用 Windows 本机 Arial Bold 绘制，不包含或分发 Arial TTF/OTF 文件。黑白普通帧保留已验收外观；重新构建需要合法可用的本机字体。Arial 字体本身不适用本项目 MIT 许可。
 
 ## API 参考
 

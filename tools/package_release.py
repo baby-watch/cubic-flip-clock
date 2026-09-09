@@ -3,18 +3,31 @@ from pathlib import Path
 import hashlib
 import json
 import zipfile
+import struct
+import zlib
 
 root = Path(__file__).resolve().parents[1]
 package = root / 'package'
 metadata = dict(line.split('=',1) for line in (package/'app.info').read_text(encoding='utf-8').splitlines() if '=' in line)
 metadata = {k.strip():v.strip() for k,v in metadata.items()}
 assert metadata['kind']=='app' and metadata['category']=='clock' and metadata['catalog_scope']=='community'
-required = ['app.info',metadata['entry'],metadata['icon'],'info.html','chinese12.bin','chinese13.bin','chinese16.bin','calendar.lua','lunar_data.lua','preferences.lua','small-dark.rgb','small-light.rgb','large-dark.rgb','large-light.rgb']
-sizes = {'small-dark.rgb':1128000,'small-light.rgb':1128000,'large-dark.rgb':1948800,'large-light.rgb':1948800}
+required = ['app.info',metadata['entry'],metadata['icon'],'info.html','chinese12.bin','chinese13.bin','chinese16.bin','calendar.lua','lunar_data.lua','preferences.lua','skins.lua','motion.lua']
+for size in ('small','large'):
+    for theme in ('dark','light','amber','ice','violet','cream','blood'):
+        required.extend([f'skins/{size}-{theme}.idx',f'skins/{size}-{theme}.dat'])
 for name in required:
     path = package/name
     assert path.is_file() and path.stat().st_size>0,name
-    if name in sizes: assert path.stat().st_size==sizes[name],name
+    if name.endswith('.idx'):
+        index=path.read_bytes();assert len(index)==960,name
+        data=path.with_suffix('.dat').read_bytes()
+        expected=94*100*2 if path.name.startswith('small-') else 140*116*2
+        end=0
+        for offset,length in struct.iter_unpack('<II',index):
+            assert offset==end and length>0 and offset+length<=len(data),name
+            assert len(zlib.decompress(data[offset:offset+length]))==expected,name
+            end=offset+length
+        assert end==len(data),name
 assert (package/'main.png').read_bytes().startswith(b'\x89PNG\r\n\x1a\n')
 release = root/'releases'
 release.mkdir(exist_ok=True)
