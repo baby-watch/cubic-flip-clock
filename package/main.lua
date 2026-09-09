@@ -58,7 +58,7 @@ local function timeparts()
   if type(t)~="table" or not t.year or t.year<2024 then return nil end
   return t
 end
-local calendar,lunarData,preferences,skins,motion
+local calendar,lunarData,preferences,skins,motion,renderer
 local function skin() return skins[A.skinIndex] end
 local function weekday(y,m,d)
   local offsets={0,3,2,5,0,3,5,1,4,6,2,4}
@@ -78,44 +78,21 @@ end
 local function blit(c,pixels,x,y,w,h)
   lv_canvas_blit_rgb565(c.canvas,x or 0,y or 0,w or c.w,h or c.h,pixels)
 end
-local function squeeze(data,w,source_y,source_h,target_h)
-  -- 只重采样行，避免 Lua 逐像素运算；垂直压缩产生翻页折叠效果。
-  local rows={}; local stride=w*2
-  for row=0,target_h-1 do
-    local source=source_y+math.min(source_h-1,math.floor(row*source_h/target_h))
-    rows[#rows+1]=data:sub(source*stride+1,(source+1)*stride)
-  end
-  return table.concat(rows)
-end
 local function frame(c,stamp)
   if not c.started then return end
   local elapsed=(stamp-c.started)%4294967.296
   local duration=A.motion=="rebound" and 760 or 320
-  local p=math.min(1,elapsed/320)
-  local half=c.h/2; local split=c.w*half*2
   if elapsed>=duration then
     if diagnostics and A.motion=="rebound" then
       status.rebound_completed=(status.rebound_completed or 0)+1
       if (c.reboundFrames or 0)==0 then status.rebound_missed=(status.rebound_missed or 0)+1 end
     end
-    blit(c,c.pixels);c.old=nil;c.started=nil;return
+    blit(c,c.pixels);c.old=nil;c.started=nil;renderer.reset(c);return
   end
-  lv_canvas_frame_begin(c.canvas)
-  blit(c,elapsed>=320 and c.pixels or (c.pixels:sub(1,split)..c.old:sub(split+1)))
-  if A.motion=="rebound" and elapsed>=320 then
-    if diagnostics then c.reboundFrames=(c.reboundFrames or 0)+1 end
-    -- 回弹露出的区域必须是底色，否则完整数字会覆盖缩回的半页。
-    lv_canvas_draw_rect(c.canvas,0,half,c.w,half,skin().bottom)
+  if diagnostics and A.motion=="rebound" and elapsed>=320 then
+    c.reboundFrames=(c.reboundFrames or 0)+1
   end
-  if p<0.5 then
-    local h=math.max(1,math.floor(half*math.cos(p*math.pi)))
-    blit(c,squeeze(c.old,c.w,0,half,h),0,half-h,c.w,h)
-  else
-    local ratio=A.motion=="rebound" and motion.rebound(elapsed-160) or math.sin((p-0.5)*math.pi)
-    local h=math.max(1,math.floor(half*ratio))
-    blit(c,squeeze(c.pixels,c.w,half,half,h),0,half,c.w,h)
-  end
-  lv_canvas_frame_end(c.canvas)
+  renderer.draw(c,elapsed,A.motion,motion,skin().bottom)
 end
 local function rebuild()
   A.cards={}
@@ -160,7 +137,7 @@ local function update(animate)
         status.rebound_interrupted=(status.rebound_interrupted or 0)+1
       end
       c.pixels=data;c.value=values[i]
-      c.reboundFrames=0
+      c.reboundFrames=0;renderer.reset(c)
       if animate and old then c.old=old;c.started=stamp;A.flips=A.flips+1
         if diagnostics and A.motion=="rebound" then status.rebound_started=(status.rebound_started or 0)+1 end
       else c.old=nil;c.started=nil;blit(c,data) end
@@ -209,6 +186,7 @@ local function start()
   preferences=assert(load(assert(file.getcontents(DIR.."preferences.lua")),"@preferences.lua"))()
   skins=assert(load(assert(file.getcontents(DIR.."skins.lua"))))()
   motion=assert(load(assert(file.getcontents(DIR.."motion.lua"))))()
+  renderer=assert(load(assert(file.getcontents(DIR.."renderer.lua"))))()
   local saved=preferences.load(file,sjson,DIR.."settings.json")
   A.light=saved.light;A.seconds=saved.seconds;A.theme=saved.theme;A.motion=saved.motion
   A.skinIndex=1;for i,v in ipairs(skins) do if v.id==A.theme then A.skinIndex=i end end

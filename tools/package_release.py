@@ -11,7 +11,7 @@ package = root / 'package'
 metadata = dict(line.split('=',1) for line in (package/'app.info').read_text(encoding='utf-8').splitlines() if '=' in line)
 metadata = {k.strip():v.strip() for k,v in metadata.items()}
 assert metadata['kind']=='app' and metadata['category']=='clock' and metadata['catalog_scope']=='community'
-required = ['app.info',metadata['entry'],metadata['icon'],'info.html','chinese12.bin','chinese13.bin','chinese16.bin','calendar.lua','lunar_data.lua','preferences.lua','skins.lua','motion.lua']
+required = ['app.info',metadata['entry'],metadata['icon'],'info.html','chinese12.bin','chinese13.bin','chinese16.bin','calendar.lua','lunar_data.lua','preferences.lua','skins.lua','motion.lua','renderer.lua']
 for size in ('small','large'):
     for theme in ('dark','light','amber','ice','violet','cream','blood'):
         required.extend([f'skins/{size}-{theme}.idx',f'skins/{size}-{theme}.dat'])
