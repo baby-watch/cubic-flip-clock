@@ -4,6 +4,20 @@
 
 ![早期开发版设备截图（尚未包含年份和农历）](docs/device-preview.png)
 
+## 七种皮肤与动效预览
+
+以下 GIF 由网页原型生成，每张依次演示余辉和机械回弹。棋盘格表示透明区域，不属于应用背景。新增皮肤与动效正在适配设备，GIF 不代表实机性能；已发布的 v1.0.0 为黑白皮肤版本。
+
+| 黑白 | 纯白 |
+| --- | --- |
+| ![黑白皮肤](docs/skins/dark.gif) | ![纯白皮肤](docs/skins/light.gif) |
+| 琥珀 | 冰蓝 |
+| ![琥珀皮肤](docs/skins/amber.gif) | ![冰蓝皮肤](docs/skins/ice.gif) |
+| 翡翠 | 奶油 |
+| ![翡翠皮肤](docs/skins/jade.gif) | ![奶油皮肤](docs/skins/cream.gif) |
+| 血红 | |
+| ![血红皮肤](docs/skins/blood.gif) | |
+
 ## 功能与操作
 
 - 默认显示时、分、秒，数字变化时执行上下半页翻动动画。
@@ -49,7 +63,7 @@
 
 本项目原创代码采用 MIT 许可；第三方资源单独说明，不受项目 MIT 许可覆盖。
 
-1.0.0 已上传公开仓库 [baby-watch/cubic](https://github.com/baby-watch/cubic)，尚未发送审核邮件或获得社区上架批准。字体内嵌 OFL 授权、源文件哈希、命名独立的子集和版权声明已保存；农历生成工具的 MIT 许可已保留。
+1.0.0 已上传公开仓库 [baby-watch/cubic-flip-clock](https://github.com/baby-watch/cubic-flip-clock)，尚未发送审核邮件或获得社区上架批准。字体内嵌 OFL 授权、源文件哈希、命名独立的子集和版权声明已保存；农历生成工具的 MIT 许可已保留。
 
 ## 重建日期资源
 

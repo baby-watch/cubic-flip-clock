@@ -13,7 +13,7 @@
 | 说明支持的交互和固件 | README 中已记录 |
 | 实机正常启动、交互、退出 | 启动与交互已验收；官方 IPC 启停事件已接入验证，详见验证记录 |
 | 无密码、Token、私钥 | 发布目录检查，不包含诊断目录与电脑配置 |
-| 公开可访问 GitHub 仓库 | https://github.com/baby-watch/cubic，版本 1.0.0 已上传 |
+| 公开可访问 GitHub 仓库 | https://github.com/baby-watch/cubic-flip-clock，版本 1.0.0 已上传 |
 | 资源许可 | 已从带内嵌 OFL 授权的 Noto 字体生成可追溯子集，并附许可 |
 | 作者审核 | 尚未提交 |
 
@@ -37,7 +37,7 @@
 
 您好，申请提交一款 Cubic 翻页时钟应用。
 
-公开 GitHub 仓库地址：https://github.com/baby-watch/cubic
+公开 GitHub 仓库地址：https://github.com/baby-watch/cubic-flip-clock
 
 应用提供时分秒翻页、黑白两种卡片样式、日期和星期。左倾切换卡片配色，右倾显示或隐藏秒；使用 LONG_START 触发，持续倾斜不反复切换。
 
