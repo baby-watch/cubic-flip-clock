@@ -17,7 +17,9 @@
 
 运行 `python tools/fetch_calendar_references.py` 获取香港天文台对照表，再运行 `npm run test:calendar`。日期测试直接执行设备所用的 Lua 模块。
 
-`tools/test_preferences.lua` 覆盖旧设置迁移、七种皮肤、三种翻页模式以及存储失败。
+`tools/test_preferences.lua` 覆盖旧设置迁移、七种皮肤、两种翻页模式以及存储失败。
+
+`tools/test_motion.lua` 检查回弹高度范围、两次回弹幅度和最终落稳。
 
 诊断时在应用目录创建 diagnostics.flag，可每十秒写入 status.json；删除后重新打开应用即可停用。诊断不自动截图。不要把用户设置、诊断开关和运行日志放入安装包。
 

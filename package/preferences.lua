@@ -1,7 +1,7 @@
 -- 仅保存用户偏好，不保存当前时间、动画中间状态或诊断信息。
 local P={}
 local themes={dark=true,light=true,amber=true,ice=true,violet=true,cream=true,blood=true}
-local motions={original=true,afterglow=true,rebound=true}
+local motions={original=true,rebound=true}
 function P.load(storage,json,path)
   local ok,data=pcall(function()
     local raw=storage.getcontents(path)

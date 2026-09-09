@@ -19,7 +19,7 @@ for name in required:
     path = package/name
     assert path.is_file() and path.stat().st_size>0,name
     if name.endswith('.idx'):
-        index=path.read_bytes();assert len(index)==960,name
+        index=path.read_bytes();assert len(index)==480,name
         data=path.with_suffix('.dat').read_bytes()
         expected=94*100*2 if path.name.startswith('small-') else 140*116*2
         end=0

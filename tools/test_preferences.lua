@@ -24,8 +24,10 @@ end
 files.settings='true,false';check(true,false)
 files.settings='false,true,jade,afterglow'
 assert(P.load(storage,json,'settings').theme=='violet')
+assert(P.load(storage,json,'settings').motion=='original')
+assert(not P.save(storage,json,'settings',false,true,'dark','afterglow'))
 for _,theme in ipairs({'dark','light','amber','ice','violet','cream','blood'}) do
-  for _,motion in ipairs({'original','afterglow','rebound'}) do
+  for _,motion in ipairs({'original','rebound'}) do
     assert(P.save(storage,json,'settings',theme=='light',false,theme,motion))
     local saved=P.load(storage,json,'settings')
     assert(saved.theme==theme and saved.motion==motion and not saved.seconds)

@@ -65,8 +65,8 @@ local function weekday(y,m,d)
   if m<3 then y=y-1 end
   return (y+math.floor(y/4)-math.floor(y/100)+math.floor(y/400)+offsets[m]+d)%7+1
 end
-local function readcard(n,w,h,glow)
-  local slot=n*16+(glow and 8 or 0)+1
+local function readcard(n,w,h)
+  local slot=n*(#A.assetIndex/60)+1
   local offset,length=string.unpack("<I4I4",A.assetIndex,slot)
   local f=assert(file.open(DIR..A.assetStem..".dat","r"),"Cannot open digit asset")
   local ok,data=pcall(function() f:seek("set",offset);return f:read(length) end)
@@ -90,26 +90,23 @@ end
 local function frame(c,stamp)
   if not c.started then return end
   local elapsed=(stamp-c.started)%4294967.296
-  local duration=A.motion=="rebound" and 620 or 320
+  local duration=A.motion=="rebound" and 760 or 320
   local p=math.min(1,elapsed/320)
   local half=c.h/2; local split=c.w*half*2
   if elapsed>=duration then
-    if not c.landed then
-      blit(c,c.pixels);c.old=nil;c.landed=true
-      if A.motion=="afterglow" and c.glowPixels then
-        lv_canvas_blit_rgb565(c.glowCanvas,0,0,c.w,c.h,c.glowPixels);c.glowPixels=nil
-      end
+    if diagnostics and A.motion=="rebound" then
+      status.rebound_completed=(status.rebound_completed or 0)+1
+      if (c.reboundFrames or 0)==0 then status.rebound_missed=(status.rebound_missed or 0)+1 end
     end
-    if A.motion=="afterglow" then
-      local opacity=motion.glow(elapsed-duration)
-      -- 只改变图像本身的透明度，避免整个对象额外生成透明合成层。
-      if c.glowOpa~=opacity then lv_obj_set_style_img_opa(c.glowCanvas,opacity,S);c.glowOpa=opacity end
-      if opacity>0 then return end
-    end
-    c.started=nil;return
+    blit(c,c.pixels);c.old=nil;c.started=nil;return
   end
   lv_canvas_frame_begin(c.canvas)
   blit(c,elapsed>=320 and c.pixels or (c.pixels:sub(1,split)..c.old:sub(split+1)))
+  if A.motion=="rebound" and elapsed>=320 then
+    if diagnostics then c.reboundFrames=(c.reboundFrames or 0)+1 end
+    -- 回弹露出的区域必须是底色，否则完整数字会覆盖缩回的半页。
+    lv_canvas_draw_rect(c.canvas,0,half,c.w,half,skin().bottom)
+  end
   if p<0.5 then
     local h=math.max(1,math.floor(half*math.cos(p*math.pi)))
     blit(c,squeeze(c.old,c.w,0,half,h),0,half-h,c.w,h)
@@ -137,10 +134,6 @@ local function rebuild()
     local canvas=lv_canvas_create(panel,w,h)
     lv_obj_set_pos(canvas,0,0)
     local c={canvas=canvas,w=w,h=h,value=-1}
-    if A.motion=="afterglow" then
-      c.glowCanvas=lv_canvas_create(panel,w,h)
-      lv_obj_set_pos(c.glowCanvas,0,0);lv_obj_set_style_img_opa(c.glowCanvas,0,S);c.glowOpa=0
-    end
     A.cards[i]=c
     box(panel,0,h/2,w,1,skin().seam,0)
     box(panel,0,h/2-3,3,6,skin().hinge,1)
@@ -157,16 +150,19 @@ local function update(animate)
   local stamp=nowms()
   for i,c in ipairs(A.cards) do
     if c.value~=values[i] then
-      local data,glow
-      if c.nextValue==values[i] then data=c.nextPixels;glow=c.nextGlow;c.nextPixels=nil;c.nextGlow=nil;c.nextValue=nil
+      local data
+      if c.nextValue==values[i] then data=c.nextPixels;c.nextPixels=nil;c.nextValue=nil
       else
         data=readcard(values[i],c.w,c.h)
-        if animate and A.motion=="afterglow" then glow=readcard(values[i],c.w,c.h,true) end
       end
       local old=c.pixels
-      c.pixels=data;c.glowPixels=glow;c.value=values[i];c.landed=false
-      if c.glowCanvas then lv_obj_set_style_img_opa(c.glowCanvas,0,S);c.glowOpa=0 end
+      if diagnostics and c.started and A.motion=="rebound" then
+        status.rebound_interrupted=(status.rebound_interrupted or 0)+1
+      end
+      c.pixels=data;c.value=values[i]
+      c.reboundFrames=0
       if animate and old then c.old=old;c.started=stamp;A.flips=A.flips+1
+        if diagnostics and A.motion=="rebound" then status.rebound_started=(status.rebound_started or 0)+1 end
       else c.old=nil;c.started=nil;blit(c,data) end
     end
     frame(c,stamp)
@@ -189,7 +185,6 @@ local function prefetch()
     local nextValue=(c.value+1)%(i==1 and 24 or 60)
     if c.value>=0 and c.nextValue~=nextValue then
       c.nextPixels=readcard(nextValue,c.w,c.h)
-      if A.motion=="afterglow" then c.nextGlow=readcard(nextValue,c.w,c.h,true) end
       c.nextValue=nextValue
       return
     end
@@ -249,8 +244,8 @@ local function start()
         if left then
           A.skinIndex=A.skinIndex%#skins+1;A.theme=skin().id;A.light=A.theme=="light";text=skin().name
         elseif event==key.SHORT then
-          local nextMotion={original="afterglow",afterglow="rebound",rebound="original"}
-          local names={original="原版翻页",afterglow="余辉",rebound="机械回弹"}
+          local nextMotion={original="rebound",rebound="original"}
+          local names={original="原版翻页",rebound="机械回弹"}
           A.motion=nextMotion[A.motion];text=names[A.motion]
         else A.seconds=not A.seconds end
         if text then lv_label_set_text(A.title,text);A.titleUntil=nowms() end
