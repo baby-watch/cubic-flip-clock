@@ -1,0 +1,11 @@
+_temp/
+releases/
+__pycache__/
+*.pyc
+.venv/
+package/status.json
+package/preview.png
+package/sample-*.png
+node_modules/
+package/diagnostics.flag
+package/settings.json

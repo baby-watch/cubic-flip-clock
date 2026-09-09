@@ -1,0 +1,13 @@
+{
+  "name": "cubic-flip-clock-tools",
+  "private": true,
+  "scripts": {
+    "build:lunar": "node tools/build_lunar.cjs",
+    "test:calendar": "node tools/test_calendar.cjs"
+  },
+  "devDependencies": {
+    "fengari-node-cli": "0.1.0",
+    "lunar-javascript": "1.7.7",
+    "lv_font_conv": "1.5.3"
+  }
+}
