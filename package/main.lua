@@ -58,7 +58,7 @@ local function timeparts()
   if type(t)~="table" or not t.year or t.year<2024 then return nil end
   return t
 end
-local calendar,lunarData,preferences,skins,motion,renderer
+local calendar,lunarData,preferences,skins,motion,renderer,cachePolicy
 local function skin() return skins[A.skinIndex] end
 local function weekday(y,m,d)
   local offsets={0,3,2,5,0,3,5,1,4,6,2,4}
@@ -121,7 +121,7 @@ local function rebuild()
   A.dateKey=nil
 end
 local function update(animate)
-  local t=timeparts()
+  local t=timeparts();A.time=t
   if not t then lv_label_set_text(A.date,"等待系统校时");lv_label_set_text(A.lunar,"");return end
   local values={t.hour,t.min,t.sec}
   local stamp=nowms()
@@ -130,6 +130,7 @@ local function update(animate)
       local data
       if c.nextValue==values[i] then data=c.nextPixels;c.nextPixels=nil;c.nextValue=nil
       else
+        c.nextPixels=nil;c.nextValue=nil
         data=readcard(values[i],c.w,c.h)
       end
       local old=c.pixels
@@ -156,16 +157,7 @@ local function update(animate)
   status.clock=string.format("%02d:%02d:%02d",t.hour,t.min,t.sec)
 end
 local function prefetch()
-  -- 在没有翻动时分散读取下一张卡片，进位瞬间直接使用内存中的图片。
-  for _,c in ipairs(A.cards) do if c.started then return end end
-  for i,c in ipairs(A.cards) do
-    local nextValue=(c.value+1)%(i==1 and 24 or 60)
-    if c.value>=0 and c.nextValue~=nextValue then
-      c.nextPixels=readcard(nextValue,c.w,c.h)
-      c.nextValue=nextValue
-      return
-    end
-  end
+  cachePolicy.step(A.cards,A.time,readcard)
 end
 local function capture()
   -- 截图是验证证据，失败时只记录，不中断时钟。
@@ -187,6 +179,7 @@ local function start()
   skins=assert(load(assert(file.getcontents(DIR.."skins.lua"))))()
   motion=assert(load(assert(file.getcontents(DIR.."motion.lua"))))()
   renderer=assert(load(assert(file.getcontents(DIR.."renderer.lua"))))()
+  cachePolicy=assert(load(assert(file.getcontents(DIR.."prefetch.lua"))))()
   local saved=preferences.load(file,sjson,DIR.."settings.json")
   A.light=saved.light;A.seconds=saved.seconds;A.theme=saved.theme;A.motion=saved.motion
   A.skinIndex=1;for i,v in ipairs(skins) do if v.id==A.theme then A.skinIndex=i end end

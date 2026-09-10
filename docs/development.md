@@ -23,6 +23,8 @@
 
 `tools/test_renderer.lua` 用画布模拟器执行正式 renderer.lua，与旧算法逐像素对照，包含定时跳帧、重复帧和新动画覆盖未完成画面。
 
+`tools/test_prefetch.lua` 检查预读窗口、跨日进位、隐藏秒、动画避让和校时后失效缓存释放。时、分图片仅在进位前三秒预读，秒图片保持原策略；每次定时回调最多预读一张。
+
 长时只读观察：`python tools/observe_device.py --url http://设备当前IP --hours 24 --output _temp/endurance`。电脑需保持运行与设备网络可达；设备需已开启 diagnostics.flag。输出 samples.jsonl 和 summary.json，完成后仍需人工区分用户退出、网络中断与真实故障，不自动给出无泄漏结论。
 
 诊断时在应用目录创建 diagnostics.flag，可每十秒写入 status.json；删除后重新打开应用即可停用。诊断不自动截图。不要把用户设置、诊断开关和运行日志放入安装包。
