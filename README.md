@@ -45,7 +45,7 @@
 
 稳定版本为 [v1.0.0](https://github.com/baby-watch/cubic-flip-clock/tree/v1.0.0)，支持黑白两种皮肤。当前开发版本 1.1.0 增加七种皮肤和机械回弹，已完成设备 API 与正式按键回调检查，外观与快速倾斜手感仍需实机验收。
 
-农历支持 1900—2100 年；已与香港天文台 2024—2030 年共 2,557 天对照表核验。长时间运行和用户报告的偶发黑屏仍在排查，详见 [验证记录](docs/validation.md)。
+农历支持 1900—2100 年；已与香港天文台 2024—2030 年共 2,557 天对照表核验。使用者已反馈实机隔夜运行后显示正常，其他测试详见 [验证记录](docs/validation.md)。
 
 资源构建、测试与官方文档入口请见 [开发说明](docs/development.md)。
 
@@ -53,4 +53,4 @@
 
 本项目原创代码采用 MIT 许可；第三方资源单独说明，不受项目 MIT 许可覆盖。
 
-1.0.0 已上传公开仓库 [baby-watch/cubic-flip-clock](https://github.com/baby-watch/cubic-flip-clock)，尚未发送审核邮件或获得社区上架批准。字体内嵌 OFL 授权、源文件哈希、命名独立的子集和版权声明已保存；农历生成工具的 MIT 许可已保留。
+当前 1.1.0 代码已上传公开仓库 [baby-watch/cubic-flip-clock](https://github.com/baby-watch/cubic-flip-clock)，尚未发送审核邮件或获得社区上架批准。字体内嵌 OFL 授权、源文件哈希、命名独立的子集和版权声明已保存；农历生成工具的 MIT 许可已保留。
